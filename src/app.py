@@ -1,13 +1,11 @@
 # import streamlit as st
 from st_audiorec import st_audiorec
-# import os
+import os
 import streamlit as st
+from auth.utils import *
+from io import BytesIO
+import librosa
 
-def save_file(file, name):
-    if file is not None:
-        with open(f'./{name}', "wb") as f:
-            f.write(file.getbuffer())
-        st.success('File saved')
 
 option = st.radio("Choose your operation:", ('Add User', 'Authorization', 'Identification'))
 
@@ -18,13 +16,13 @@ if option == 'Add User':
     user_name = st.text_input("Enter the user's name:")
     if st.button("Save User and Files"):
         for uploaded_file in uploaded_files:
-            save_file(uploaded_file, f"{user_name}_{uploaded_file.name}")
+            pass
 
 elif option == 'Authorization':
     st.header("User Authorization")
     # File uploader for a single file
     uploaded_file = st.file_uploader("Upload your authorization audio file", accept_multiple_files=False, type=['wav', 'mp3'])
-    who_are_you = st.text_input("Who are you?")
+    user_name = st.text_input("Who are you?")
     
     record_option = st.radio("Or would you like to record audio?", ('No', 'Yes'))
     if record_option == 'Yes':
@@ -32,8 +30,10 @@ elif option == 'Authorization':
 
     if st.button("Authorize"):
         if uploaded_file is not None:
-            save_file(uploaded_file, f"{who_are_you}_{uploaded_file.name}")
-        st.write(f"Authorization attempt by {who_are_you}")
+            if record_option == 'No':
+                uploaded_file = uploaded_file.read()
+            ret = authorize_from_bytes(uploaded_file, user_name)
+        st.write(f"Authorization attempt by {user_name} with result {ret}")
 
 elif option == "Identification":
     st.header("User Identification")
@@ -45,4 +45,8 @@ elif option == "Identification":
         uploaded_file = st_audiorec()
 
     if st.button("Identify"):
-        st.write(f"Iedntified as ...")
+        if uploaded_file is not None:
+            if record_option == 'No':
+                uploaded_file = uploaded_file.read()
+            out_person = identify_from_bytes(uploaded_file)
+            st.write(f"Identified as {out_person}")

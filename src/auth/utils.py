@@ -7,11 +7,13 @@ import json
 import torch
 import numpy as np
 import os
+import librosa
+from io import BytesIO
 
 
-PATH_TO_DB='../data/users_all.csv'
+PATH_TO_DB='data/users_all.csv'
 
-def identify(audio_path: str, threshold=0.6):
+def identify(audio_path: str, threshold=0.6, path_to_db=PATH_TO_DB):
     """User identification based on cosine similarity.
 
     Args:
@@ -21,10 +23,8 @@ def identify(audio_path: str, threshold=0.6):
     Returns:
         str| None: closest user or None if none of users is close enough
     """
-    df = pd.read_csv(PATH_TO_DB)
+    df = pd.read_csv(path_to_db)
     embedding_dict = dict(zip(df['user_name'], df['embedding'].apply(lambda x: np.array(json.loads(x), dtype=np.float32))))
-
-    user_names = list(embedding_dict.keys())
     rate, data = wavfile.read(audio_path)
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
     classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
@@ -44,7 +44,7 @@ def identify(audio_path: str, threshold=0.6):
     
 
 
-def identify(audio_path: str, user_name:str, threshold=0.6):
+def authorize(audio_path: str, user_name:str, threshold=0.6, path_to_db=PATH_TO_DB):
     """User authentication based on cosine similarity.
 
     Args:
@@ -55,10 +55,9 @@ def identify(audio_path: str, user_name:str, threshold=0.6):
         bool: True if auth correctly or false 
     """
     name = user_name.replace(" ", "_")
-    df = pd.read_csv(PATH_TO_DB)
+    df = pd.read_csv(path_to_db)
     embedding_dict = dict(zip(df['user_name'], df['embedding'].apply(lambda x: np.array(json.loads(x), dtype=np.float32))))
 
-    user_names = list(embedding_dict.keys())
     rate, data = wavfile.read(audio_path)
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
     classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
@@ -78,7 +77,71 @@ def identify(audio_path: str, user_name:str, threshold=0.6):
     
 
 
-def load_and_encode(directory:str):
+def authorize_from_bytes(file: bytes, user_name:str, threshold=0.6, path_to_db=PATH_TO_DB):
+    """User authentication based on cosine similarity.
+
+    Args:
+        audio_path (str): string path to the audio file
+        threshold (float, optional): Threshold thad defines the minimum cosine similarity value that should be reached to identify user. Defaults to 0.6.
+
+    Returns:
+        bool: True if auth correctly or false 
+    """
+    name = user_name.replace(" ", "_")
+    df = pd.read_csv(path_to_db)
+    embedding_dict = dict(zip(df['user_name'], df['embedding'].apply(lambda x: np.array(json.loads(x), dtype=np.float32))))
+
+    
+    data, rate = librosa.load(BytesIO(file), sr=None)
+    reduced_noise = nr.reduce_noise(y=data, sr=rate)
+    classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+    emb = classifier.encode_batch(torch.tensor(reduced_noise).float()).reshape(-1, 1).view(-1)
+    closest_user = None
+    min_distance = -1
+    
+    for user_name, stored_embedding in embedding_dict.items():
+        similarity = 1 - cosine(emb, stored_embedding)
+        if similarity > min_distance:
+            min_distance = similarity
+            closest_user = user_name
+    if min_distance >= threshold and name == closest_user:
+        return True
+    else:
+        return False
+    
+
+def identify_from_bytes(file: bytes, threshold=0.6, path_to_db=PATH_TO_DB):
+    """User identification based on cosine similarity.
+
+    Args:
+        audio_path (str): string path to the audio file
+        threshold (float, optional): Threshold thad defines the minimum cosine similarity value that should be reached to identify user. Defaults to 0.6.
+
+    Returns:
+        str| None: closest user or None if none of users is close enough
+    """
+    df = pd.read_csv(path_to_db)
+    embedding_dict = dict(zip(df['user_name'], df['embedding'].apply(lambda x: np.array(json.loads(x), dtype=np.float32))))
+    data, rate = librosa.load(BytesIO(file), sr=None)
+    reduced_noise = nr.reduce_noise(y=data, sr=rate)
+    classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+    emb = classifier.encode_batch(torch.tensor(reduced_noise).float()).reshape(-1, 1).view(-1)
+    closest_user = None
+    min_distance = -1
+    
+    for user_name, stored_embedding in embedding_dict.items():
+        similarity = 1 - cosine(emb, stored_embedding)
+        if similarity > min_distance:
+            min_distance = similarity
+            closest_user = user_name
+    if min_distance >= threshold:
+        return closest_user
+    else:
+        return None
+    
+
+
+def load_and_encode(directory:str, path_to_db=PATH_TO_DB):
     embeddings = {}
     labels = []
     for person in os.listdir(directory):
@@ -97,5 +160,13 @@ def load_and_encode(directory:str):
         embeddings[person]=np.mean(embs_profile, axis=0)
         data_for_df = [{'user_name': key, 'embedding': json.dumps(value.tolist())} for key, value in embeddings.items()]
         df = pd.DataFrame(data_for_df)
-        df.to_csv(PATH_TO_DB, index=False)    
+        df.to_csv(path_to_db, index=False)    
     return np.array(embeddings), labels
+
+
+
+
+def add_to_db(files,  path_to_db=PATH_TO_DB):
+    pass
+
+
