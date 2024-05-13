@@ -3,7 +3,6 @@ from st_audiorec import st_audiorec
 import os
 import streamlit as st
 from auth.utils import *
-from io import BytesIO
 import librosa
 
 
@@ -15,8 +14,7 @@ if option == 'Add User':
     uploaded_files = st.file_uploader("Choose audio files", accept_multiple_files=True, type=['wav', 'mp3'])
     user_name = st.text_input("Enter the user's name:")
     if st.button("Save User and Files"):
-        for uploaded_file in uploaded_files:
-            pass
+        save_as_wav(uploaded_files, user_name)
 
 elif option == 'Authorization':
     st.header("User Authorization")
@@ -49,4 +47,7 @@ elif option == "Identification":
             if record_option == 'No':
                 uploaded_file = uploaded_file.read()
             out_person = identify_from_bytes(uploaded_file)
-            st.write(f"Identified as {out_person}")
+            if out_person == None:
+                st.write("Unable to identify, such person not in database")
+            else:
+                st.write(f"Identified as {out_person}")

@@ -9,6 +9,7 @@ import numpy as np
 import os
 import librosa
 from io import BytesIO
+import soundfile as sf
 
 
 PATH_TO_DB='data/users_all.csv'
@@ -166,7 +167,26 @@ def load_and_encode(directory:str, path_to_db=PATH_TO_DB):
 
 
 
-def add_to_db(files,  path_to_db=PATH_TO_DB):
-    pass
+def save_as_wav(audio_files, user_name):
+    """
+    Saves a list of audio files as .wav in a specified directory structure.
+
+    Parameters:
+        audio_files (list of tuples): List of tuples, each containing (audio_data, sample_rate)
+        user_name (str): The user's name to customize the folder path
+    """
+    user_name = user_name.replace(" ", "_")
+    base_dir = f"data/vox1/{user_name}/profile"
+    
+    os.makedirs(base_dir, exist_ok=True)
+    
+    # Loop through the list of audio files and their sample rates
+    for i, (audio_data, sample_rate) in enumerate(audio_files):
+        # Define the file path
+        file_path = os.path.join(base_dir, f"{user_name}_{i}.wav")
+        
+        # Save the audio file as a .wav file
+        sf.write(file_path, audio_data, sample_rate)
+        print(f"Saved {file_path}")
 
 
