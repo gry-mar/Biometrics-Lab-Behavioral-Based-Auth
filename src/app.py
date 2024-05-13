@@ -1,66 +1,48 @@
-import streamlit as st
+# import streamlit as st
 from st_audiorec import st_audiorec
-import os
+# import os
+import streamlit as st
 
+def save_file(file, name):
+    if file is not None:
+        with open(f'./{name}', "wb") as f:
+            f.write(file.getbuffer())
+        st.success('File saved')
 
-st.title('🎶AA🎶 - the best Audio Auth')
+option = st.radio("Choose your operation:", ('Add User', 'Authorization', 'Identification'))
 
+if option == 'Add User':
+    st.header("Add a New User")
+    # File uploader allows multiple files
+    uploaded_files = st.file_uploader("Choose audio files", accept_multiple_files=True, type=['wav', 'mp3'])
+    user_name = st.text_input("Enter the user's name:")
+    if st.button("Save User and Files"):
+        for uploaded_file in uploaded_files:
+            save_file(uploaded_file, f"{user_name}_{uploaded_file.name}")
 
-st.subheader("Record file or choose from disk")
-
-if "audio_option" not in st.session_state:
-    st.session_state.audio_option = "Load"
+elif option == 'Authorization':
+    st.header("User Authorization")
+    # File uploader for a single file
+    uploaded_file = st.file_uploader("Upload your authorization audio file", accept_multiple_files=False, type=['wav', 'mp3'])
+    who_are_you = st.text_input("Who are you?")
     
-st.radio(
-        label="Choose",
-        options=["Record", "Load"],
-        key="audio_option",
-    )
+    record_option = st.radio("Or would you like to record audio?", ('No', 'Yes'))
+    if record_option == 'Yes':
+        uploaded_file = st_audiorec()
 
-if st.session_state.audio_option == "Record":
-    audio_file = st_audiorec()
-else: 
-    audio_file = st.file_uploader("Choose an audio file", type=['wav', 'mp3'])
-st.subheader("Select auth mode")
-# if wav_audio_data is not None:
-#         st.audio(wav_audio_data, format='audio/wav')
+    if st.button("Authorize"):
+        if uploaded_file is not None:
+            save_file(uploaded_file, f"{who_are_you}_{uploaded_file.name}")
+        st.write(f"Authorization attempt by {who_are_you}")
 
-tab1, tab2= st.tabs(["Check identity", "Authorize as an user"])
-
-with tab1:
+elif option == "Identification":
+    st.header("User Identification")
+    # File uploader for a single file
+    uploaded_file = st.file_uploader("Upload your authorization audio file", accept_multiple_files=False, type=['wav', 'mp3'])
     
-    if audio_file is not None:
-        # Save the file to the server temporarily
-        with open(os.path.join("tempDir",audio_file.name),"wb") as f:
-            f.write(audio_file.getbuffer())
+    record_option = st.radio("Or would you like to record audio?", ('No', 'Yes'))
+    if record_option == 'Yes':
+        uploaded_file = st_audiorec()
 
-        if st.button('Confirm Audio'):
-            st.success('Audio confirmed!')
-
-        # st.audio(audio_file)
-
-    if st.button('Check'):
-        pass
-
-with tab2:
-
-    # wav_audio_data = st_audiorec()
-
-    # if wav_audio_data is not None:
-    #     st.audio(wav_audio_data, format='audio/wav')
-
-    if audio_file is not None:
-        # Save the file to the server temporarily
-        with open(os.path.join("tempDir",audio_file.name),"wb") as f:
-            f.write(audio_file.getbuffer())
-
-        if st.button('Confirm Audio'):
-            st.success('Audio confirmed!')
-
-        st.audio(audio_file)
-
-    user_input = st.text_input("Enter some text")
-
-
-    if st.button('Click me!'):
-        st.write(f"You entered: {user_input}")
+    if st.button("Identify"):
+        st.write(f"Iedntified as ...")
