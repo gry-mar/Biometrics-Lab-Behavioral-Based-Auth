@@ -127,6 +127,8 @@ def identify_from_bytes(file: bytes, threshold=0.6, path_to_db=PATH_TO_DB):
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
     classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
     emb = classifier.encode_batch(torch.tensor(reduced_noise).float()).reshape(-1, 1).view(-1)
+
+
     closest_user = None
     min_distance = -1
     
@@ -143,6 +145,13 @@ def identify_from_bytes(file: bytes, threshold=0.6, path_to_db=PATH_TO_DB):
 
 
 def load_and_encode(directory:str, path_to_db=PATH_TO_DB):
+    """Loads users and audio from voc folder and saves users with embeddings to csv database
+
+    Args:
+        directory (str): location of wav files
+        path_to_db (str, optional): Path that csv will be saved to. Defaults to PATH_TO_DB.
+
+    """
     embeddings = {}
     labels = []
     for person in os.listdir(directory):
@@ -162,31 +171,25 @@ def load_and_encode(directory:str, path_to_db=PATH_TO_DB):
         data_for_df = [{'user_name': key, 'embedding': json.dumps(value.tolist())} for key, value in embeddings.items()]
         df = pd.DataFrame(data_for_df)
         df.to_csv(path_to_db, index=False)    
-    return np.array(embeddings), labels
 
 
 
 
-def save_as_wav(audio_files, user_name):
-    """
-    Saves a list of audio files as .wav in a specified directory structure.
-
-    Parameters:
-        audio_files (list of tuples): List of tuples, each containing (audio_data, sample_rate)
-        user_name (str): The user's name to customize the folder path
+def add_to_db(audio_files, user_name, path_to_db=PATH_TO_DB):
+    """Adds user to csv db
     """
     user_name = user_name.replace(" ", "_")
-    base_dir = f"data/vox1/{user_name}/profile"
-    
-    os.makedirs(base_dir, exist_ok=True)
-    
-    # Loop through the list of audio files and their sample rates
-    for i, (audio_data, sample_rate) in enumerate(audio_files):
-        # Define the file path
-        file_path = os.path.join(base_dir, f"{user_name}_{i}.wav")
-        
-        # Save the audio file as a .wav file
-        sf.write(file_path, audio_data, sample_rate)
-        print(f"Saved {file_path}")
+    df = pd.read_csv(path_to_db)
+    classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+    embs_profile = []
+    for file in audio_files:
+        data, rate = librosa.load(BytesIO(file.read()), sr=None)
+        reduced_noise = nr.reduce_noise(y=data, sr=rate)
+        emb = classifier.encode_batch(torch.tensor(reduced_noise).float()).reshape(-1, 1).view(-1)
+        embs_profile.append(emb.squeeze().detach().numpy()) 
+    new_row = pd.DataFrame([{'user_name': user_name, 'embedding':  json.dumps(np.mean(embs_profile, axis=0).tolist())}])
+    print(new_row)
+    df = pd.concat([df, new_row])
+    df.to_csv(path_to_db, index=False)
 
 

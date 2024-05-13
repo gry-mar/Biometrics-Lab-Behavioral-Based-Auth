@@ -1,9 +1,7 @@
-# import streamlit as st
+
 from st_audiorec import st_audiorec
-import os
 import streamlit as st
 from auth.utils import *
-import librosa
 
 
 option = st.radio("Choose your operation:", ('Add User', 'Authorization', 'Identification'))
@@ -12,9 +10,12 @@ if option == 'Add User':
     st.header("Add a New User")
     # File uploader allows multiple files
     uploaded_files = st.file_uploader("Choose audio files", accept_multiple_files=True, type=['wav', 'mp3'])
+    print(uploaded_files.count)
     user_name = st.text_input("Enter the user's name:")
     if st.button("Save User and Files"):
-        save_as_wav(uploaded_files, user_name)
+        add_to_db(uploaded_files, user_name)
+        st.success("User added")
+
 
 elif option == 'Authorization':
     st.header("User Authorization")
