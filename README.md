@@ -40,4 +40,4 @@ vox1_test
 
 # Sposób uruchomienia
 
-to be added...
+>> streamlit run src/app.py
